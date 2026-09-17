@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rift Slate — календар матчів LoL Esports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E13;
+    --panel:#111721;
+    --panel-2:#161E2A;
+    --border:#232E3D;
+    --border-soft:#1B2532;
+    --text:#E8EDF4;
+    --text-dim:#8B99A9;
+    --text-faint:#5C6A7A;
+
+    --tier-s:#E8B94A;
+    --tier-s-bg:rgba(232,185,74,.12);
+    --tier-a:#3FC1C9;
+    --tier-a-bg:rgba(63,193,201,.12);
+    --tier-b:#9B7FE0;
+    --tier-b-bg:rgba(155,127,224,.12);
+    --tier-c:#7C8A99;
+    --tier-c-bg:rgba(124,138,153,.12);
+
+    --live:#FF5D5D;
+    --today-ring:#3FC1C9;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--tier-a-bg); color:var(--text); }
+  a{color:inherit;}
+
+  .app{ display:grid; grid-template-columns:272px 1fr; min-height:100vh; }
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{order:2; border-right:none; border-top:1px solid var(--border);}
+  }
+
+  .sidebar{
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    padding:22px 18px 32px;
+    display:flex; flex-direction:column; gap:26px;
+  }
+  .brand{ display:flex; align-items:baseline; gap:8px; margin-bottom:2px; }
+  .brand .mark{
+    width:10px; height:10px; border-radius:2px;
+    background:linear-gradient(135deg,var(--tier-a),var(--tier-b));
+    transform:rotate(45deg); flex:none;
+  }
+  .brand h1{ font-family:'Oswald',sans-serif; font-weight:600; font-size:19px; letter-spacing:.2px; margin:0; }
+  .brand .sub{ font-size:12px; color:var(--text-faint); margin-top:2px; }
+
+  .side-section{ display:flex; flex-direction:column; gap:10px; }
+  .side-section h2{ font-size:12px; font-weight:600; color:var(--text-dim); margin:0; display:flex; align-items:center; justify-content:space-between; }
+  .side-section h2 .hint{ font-weight:400; color:var(--text-faint); font-size:11px; }
+
+  .tier-row{ display:flex; align-items:center; gap:10px; padding:7px 9px; border-radius:8px; cursor:pointer; border:1px solid transparent; transition:background .12s, border-color .12s; user-select:none; }
+  .tier-row:hover{ background:var(--panel-2); }
+  .tier-row input{ display:none; }
+  .tier-dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .tier-row .label{ font-size:13.5px; font-weight:500; flex:1; }
+  .tier-row .count{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); }
+  .tier-row.off{ opacity:.35; }
+  .tier-row.off .count{ opacity:0; }
+  .tier-row[data-tier="S"] .tier-dot{ background:var(--tier-s); }
+  .tier-row[data-tier="A"] .tier-dot{ background:var(--tier-a); }
+  .tier-row[data-tier="B"] .tier-dot{ background:var(--tier-b); }
+  .tier-row[data-tier="C"] .tier-dot{ background:var(--tier-c); }
+
+  .search-box{ display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px; padding:7px 10px; }
+  .search-box input{ background:none; border:none; outline:none; color:var(--text); font-size:13px; width:100%; font-family:'Inter',sans-serif; }
+  .search-box input::placeholder{ color:var(--text-faint); }
+  .search-box svg{ flex:none; opacity:.5; }
+
+  .tourney-list{ display:flex; flex-direction:column; gap:2px; max-height:300px; overflow-y:auto; margin-right:-6px; padding-right:6px; }
+  .tourney-list::-webkit-scrollbar{ width:6px; }
+  .tourney-list::-webkit-scrollbar-thumb{ background:var(--border); border-radius:3px; }
+
+  .tourney-row{ display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:7px; cursor:pointer; font-size:13px; }
+  .tourney-row:hover{ background:var(--panel-2); }
+  .tourney-row input{ display:none; }
+  .chk{ width:14px; height:14px; border-radius:4px; border:1.5px solid var(--border); flex:none; display:flex; align-items:center; justify-content:center; }
+  .tourney-row.checked .chk{ background:var(--tier-a); border-color:var(--tier-a); }
+  .tourney-row.checked .chk::after{ content:''; width:7px; height:4px; border-left:2px solid #061014; border-bottom:2px solid #061014; transform:rotate(-45deg) translate(0,-1px); }
+  .tourney-row .name{ flex:1; color:var(--text); }
+  .tourney-row:not(.checked) .name{ color:var(--text-faint); }
+  .tourney-row .tdot{ width:6px; height:6px; border-radius:50%; flex:none; }
+  .tourney-row .tbd-tag{ font-size:8.5px; font-weight:700; color:var(--tier-s); border:1px dashed var(--tier-s); border-radius:4px; padding:1px 4px; flex:none; }
+
+  .side-actions{ display:flex; gap:8px; margin-top:auto; padding-top:18px; border-top:1px solid var(--border-soft); }
+  .btn{ font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; padding:8px 12px; border-radius:7px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim); cursor:pointer; transition:border-color .12s, color .12s, background .12s; }
+  .btn:hover{ color:var(--text); border-color:var(--text-faint); }
+  .btn.primary{ background:var(--tier-a); color:#04181A; border-color:var(--tier-a); }
+  .btn.primary:hover{ filter:brightness(1.08); }
+  .btn.block{ width:100%; text-align:center; }
+
+  .main{ padding:22px 26px 40px; display:flex; flex-direction:column; gap:18px; min-width:0; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+  .month-nav{ display:flex; align-items:center; gap:14px; }
+  .month-nav h2{ font-family:'Oswald',sans-serif; font-weight:600; font-size:22px; margin:0; min-width:210px; }
+  .nav-btn{ width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .nav-btn:hover{ color:var(--text); }
+  .status{ font-size:11.5px; color:var(--text-faint); display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; }
+  .status .dot{ width:6px; height:6px; border-radius:50%; background:var(--text-faint); }
+  .status.live .dot{ background:#5FE08A; box-shadow:0 0 0 3px rgba(95,224,138,.15); }
+  .status.demo .dot{ background:var(--tier-s); box-shadow:0 0 0 3px rgba(232,185,74,.15); }
+  .topbar-right{ display:flex; align-items:center; gap:10px; }
+
+  .banner{ background:var(--tier-s-bg); border:1px solid rgba(232,185,74,.35); color:#F0D08C; font-size:12.5px; border-radius:9px; padding:10px 14px; display:none; align-items:center; gap:10px; line-height:1.5; }
+  .banner.show{ display:flex; }
+  .banner b{ color:var(--tier-s); }
+  .banner .close{ margin-left:auto; cursor:pointer; color:#F0D08C; opacity:.7; font-size:16px; line-height:1; flex:none; }
+
+  .summary{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  @media (max-width:700px){ .summary{ grid-template-columns:1fr; } }
+  .summary-card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:3px; }
+  .summary-card .k{ font-size:11px; font-weight:600; color:var(--text-dim); }
+  .summary-card .v{ font-family:'Oswald',sans-serif; font-size:21px; font-weight:600; }
+  .summary-card .d{ font-size:12px; color:var(--text-faint); }
+  .summary-card.busy .v{ color:var(--live); }
+  .summary-card.quiet .v{ color:var(--tier-a); }
+
+  .weekday-row{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; padding:0 2px; }
+  .weekday-row span{ font-size:11px; font-weight:600; color:var(--text-faint); text-align:left; padding-left:4px; }
+
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:minmax(112px,1fr); gap:8px; }
+  .cal-cell{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 8px 6px; display:flex; flex-direction:column; gap:5px; cursor:pointer; transition:border-color .12s, background .12s; min-width:0; }
+  .cal-cell:hover{ border-color:var(--text-faint); }
+  .cal-cell.outside{ opacity:.32; }
+  .cal-cell.today{ border-color:var(--today-ring); box-shadow:inset 0 0 0 1px var(--today-ring); }
+  .cal-cell.selected{ background:var(--panel-2); border-color:var(--tier-a); }
+  .cal-cell.busiest{ box-shadow:inset 0 0 0 1px rgba(255,93,93,.5); }
+  .cal-cell.quietest{ box-shadow:inset 0 0 0 1px rgba(63,193,201,.5); }
+
+  .cell-head{ display:flex; align-items:center; justify-content:space-between; }
+  .cell-day{ font-size:12.5px; font-weight:600; color:var(--text-dim); }
+  .cal-cell.today .cell-day{ color:#061014; background:var(--today-ring); width:19px; height:19px; border-radius:5px; display:flex; align-items:center; justify-content:center; }
+  .cell-flag{ font-size:9px; font-weight:700; letter-spacing:.3px; }
+  .cell-flag.busy{ color:var(--live); }
+  .cell-flag.quiet{ color:var(--tier-a); }
+
+  .chip{ font-size:10.5px; font-weight:500; padding:3px 6px; border-radius:5px; display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-left:2.5px solid transparent; }
+  .chip .t{ font-family:'JetBrains Mono',monospace; font-size:9.5px; opacity:.75; flex:none; }
+  .chip .n{ overflow:hidden; text-overflow:ellipsis; }
+  .chip .warn{ color:var(--live); font-weight:800; flex:none; }
+  .chip[data-tier="S"]{ background:var(--tier-s-bg); border-color:var(--tier-s); color:#F0D08C; }
+  .chip[data-tier="A"]{ background:var(--tier-a-bg); border-color:var(--tier-a); color:#A6E8EB; }
+  .chip[data-tier="B"]{ background:var(--tier-b-bg); border-color:var(--tier-b); color:#CBBBF2; }
+  .chip[data-tier="C"]{ background:var(--tier-c-bg); border-color:var(--tier-c); color:#B7C1CB; }
+  .chip.conflict{ box-shadow:0 0 0 1px var(--live) inset; }
+  .chip-more{ font-size:10px; color:var(--text-faint); padding:2px 6px; font-weight:600; }
+
+  .ribbon{ font-size:9.5px; font-weight:600; padding:3px 6px; border-radius:5px; border:1px dashed; display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ribbon[data-tier="S"]{ border-color:var(--tier-s); color:var(--tier-s); background:rgba(232,185,74,.06); }
+  .ribbon[data-tier="A"]{ border-color:var(--tier-a); color:var(--tier-a); background:rgba(63,193,201,.06); }
+  .ribbon[data-tier="B"]{ border-color:var(--tier-b); color:var(--tier-b); background:rgba(155,127,224,.06); }
+  .ribbon[data-tier="C"]{ border-color:var(--tier-c); color:var(--tier-c); background:rgba(124,138,153,.06); }
+  .ribbon .tbd-mark{ font-size:8px; font-weight:800; opacity:.85; flex:none; }
+
+  .day-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px 18px; display:none; flex-direction:column; gap:14px;
+    transform:scale(.97) translateY(-6px); opacity:0;
+    transform-origin:top center;
+    transition:transform .22s cubic-bezier(.2,.7,.3,1), opacity .22s ease;
+  }
+  .day-panel.show{ display:flex; }
+  .day-panel.grown{ transform:scale(1) translateY(0); opacity:1; }
+  .day-panel-head{ display:flex; align-items:baseline; justify-content:space-between; }
+  .day-panel-head h3{ font-family:'Oswald',sans-serif; font-weight:600; font-size:16px; margin:0; }
+  .day-panel-head .sub{ font-size:11.5px; color:var(--text-faint); margin-left:8px; font-weight:400; }
+  .day-panel-head .close{ cursor:pointer; color:var(--text-faint); font-size:18px; }
+  .day-section-title{ font-size:11px; font-weight:600; color:var(--text-faint); margin:2px 0 -4px; }
+
+  /* ---------- Погодинна шкала дня (компактна навколо матчів, зі скролом) ---------- */
+  .timeline-wrap{
+    display:flex; gap:0;
+    max-height:460px; overflow-y:auto;
+    border-radius:8px;
+  }
+  .timeline-wrap::-webkit-scrollbar{ width:7px; }
+  .timeline-wrap::-webkit-scrollbar-thumb{ background:var(--border); border-radius:4px; }
+  .timeline-hours{
+    flex:none; width:46px;
+    position:sticky; left:0; z-index:6; background:var(--panel);
+  }
+  .timeline-hour-label{
+    position:absolute; right:8px; width:32px;
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-faint);
+    text-align:right;
+  }
+  .timeline-body{
+    position:relative; flex:1;
+    border-left:1px solid var(--border-soft);
+  }
+  .timeline-gap{
+    position:absolute; left:6px; right:6px;
+    display:flex; align-items:center;
+  }
+  .timeline-gap::before, .timeline-gap::after{
+    content:''; flex:1; border-top:1px dashed var(--border-soft);
+  }
+  .timeline-gap-label{
+    font-size:9px; color:var(--text-faint); font-style:italic;
+    padding:0 8px; white-space:nowrap;
+  }
+  .timeline-now-line{
+    position:absolute; left:0; right:0; height:0; border-top:1.5px dashed var(--live);
+    z-index:5;
+  }
+  .timeline-now-line::before{
+    content:'зараз'; position:absolute; left:4px; top:-16px;
+    font-size:9px; color:var(--live); font-weight:700; letter-spacing:.3px;
+  }
+  .event-block{
+    position:absolute;
+    border-radius:7px;
+    padding:5px 7px;
+    overflow:hidden;
+    border-left:3px solid transparent;
+    cursor:default;
+    transition:filter .12s;
+  }
+  .event-block:hover{ filter:brightness(1.15); z-index:9 !important; }
+  .event-block .eb-time{ font-family:'JetBrains Mono',monospace; font-size:10px; opacity:.85; display:block; }
+  .event-block .eb-teams{ font-size:12px; font-weight:700; line-height:1.25; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .event-block .eb-league{ font-size:9.5px; opacity:.75; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .event-block[data-tier="S"]{ background:var(--tier-s-bg); border-left-color:var(--tier-s); color:#F0D08C; }
+  .event-block[data-tier="A"]{ background:var(--tier-a-bg); border-left-color:var(--tier-a); color:#A6E8EB; }
+  .event-block[data-tier="B"]{ background:var(--tier-b-bg); border-left-color:var(--tier-b); color:#CBBBF2; }
+  .event-block[data-tier="C"]{ background:var(--tier-c-bg); border-left-color:var(--tier-c); color:#B7C1CB; }
+  .event-block.conflict{ box-shadow:0 0 0 1.5px var(--live) inset; }
+  .event-block.conflict .eb-teams::after{ content:' ⚠'; color:var(--live); }
+  .event-block.compact .eb-league{ display:none; }
+  .event-block.tiny .eb-teams{ font-size:10.5px; }
+  .event-block.tiny .eb-time, .event-block.tiny .eb-league{ display:none; }
+  .event-block .eb-teams-bo{ display:none; font-weight:600; opacity:.85; }
+  .event-block.tiny .eb-teams-bo{ display:inline; }
+  /* сегмент матчу, що перетинає північ: зрізаний край позначаємо
+     пунктиром, прибираємо заокруглення з того боку, де матч "триває",
+     і дозволяємо клік — переходить на суміжний день (див. jumpToDay) */
+  .event-block.continues-next{ border-bottom:1.5px dashed currentColor; border-bottom-left-radius:0; border-bottom-right-radius:0; cursor:pointer; }
+  .event-block.continues-prev{ border-top:1.5px dashed currentColor; border-top-left-radius:0; border-top-right-radius:0; cursor:pointer; }
+  .event-block.continues-next:hover, .event-block.continues-prev:hover{ filter:brightness(1.25); box-shadow:0 0 0 1px currentColor inset; }
+
+  .upcoming-row{ display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--panel-2); border-radius:8px; border-left:3px dashed var(--border); }
+  .upcoming-row[data-tier="S"]{ border-left-color:var(--tier-s); }
+  .upcoming-row[data-tier="A"]{ border-left-color:var(--tier-a); }
+  .upcoming-row[data-tier="B"]{ border-left-color:var(--tier-b); }
+  .upcoming-row[data-tier="C"]{ border-left-color:var(--tier-c); }
+  .upcoming-row .uname{ font-size:13.5px; font-weight:600; flex:1; min-width:0; }
+  .upcoming-row .urange{ font-size:11px; color:var(--text-faint); flex:none; }
+  .upcoming-row .unote{ font-size:11px; color:var(--text-faint); font-style:italic; flex:none; }
+  .empty-note{ font-size:13px; color:var(--text-faint); padding:6px 2px; }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(4,7,11,.65); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--border); border-radius:14px; width:100%; max-width:560px; padding:22px; display:flex; flex-direction:column; gap:12px; max-height:85vh; overflow-y:auto; }
+  .modal h3{ font-family:'Oswald',sans-serif; margin:0; font-size:18px; }
+  .modal p{ font-size:13px; color:var(--text-dim); line-height:1.6; margin:0; }
+  .modal code{ background:var(--panel-2); padding:1px 5px; border-radius:4px; font-size:12px; font-family:'JetBrains Mono',monospace; color:var(--tier-a); }
+  .modal textarea{ width:100%; min-height:160px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:12px; padding:10px; resize:vertical; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
+  .modal-error{ font-size:12px; color:var(--live); display:none; }
+  .modal-error.show{ display:block; }
+</style>
+</head>
+<body>
+
+<!--
+  Цей блок заповнює окремий Python-скрипт parser.py (той, що йде поруч у файлі parser.py).
+  Він запускається ОКРЕМО від сторінки (при консольному запуску, не в браузері),
+  тягне дані з Riot esports feed і Liquipedia, і записує результат прямо сюди.
+  Поки скрипт жодного разу не запускали — тут порожньо, і сторінка сама підхоплює demo-дані.
+-->
+<script id="match-data" type="application/json">{"generatedAt": "2026-09-17T08:12:04", "matches": [{"id": "116889604984222993", "league": "LCK Challengers", "tier": "A", "teamA": "kt Challengers", "teamB": "DNS Challengers", "time": "2026-09-11T08:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624036329", "league": "VCS", "tier": "B", "teamA": "TP.HCM SN CyberCore Esports", "teamB": "Saigon 1TAP DINO", "time": "2026-09-11T09:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "116952475624364037", "league": "VCS", "tier": "B", "teamA": "Saigon Warrior", "teamB": "Saigon 9Gaming Esports", "time": "2026-09-11T12:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "117030847537428758", "league": "Hellenic Legends League", "tier": "C", "teamA": "Gamespace M.C.", "teamB": "Team Phantasma", "time": "2026-09-11T14:30:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116838284885536060", "league": "TCL", "tier": "B", "teamA": "PCIFIC Esports", "teamB": "Bushido Wildcats", "time": "2026-09-11T14:30:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "115548681803406309", "league": "LEC", "tier": "A", "teamA": "GIANTX", "teamB": "Natus Vincere", "time": "2026-09-11T15:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116792888905448380", "league": "NACL", "tier": "C", "teamA": "Cupid Esports", "teamB": "Maryville University", "time": "2026-09-11T21:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "117030752644841637", "league": "LCK", "tier": "A", "teamA": "Hanwha Life Esports", "teamB": "T1", "time": "2026-09-12T05:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117155436343202196", "league": "LPL", "tier": "A", "teamA": "Invictus Gaming", "teamB": "Anyone's Legend", "time": "2026-09-12T09:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624364041", "league": "VCS", "tier": "B", "teamA": "Saigon MVKE Academy", "teamB": "Saigon 9Gaming Esports", "time": "2026-09-12T09:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "116952475624364029", "league": "VCS", "tier": "B", "teamA": "Saigon Warrior", "teamB": "TP.HCM SN CyberCore Esports", "time": "2026-09-12T12:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "116713193618227907", "league": "Prime League", "tier": "C", "teamA": "G2 NORD", "teamB": "Berlin International Gaming", "time": "2026-09-12T12:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "115548681803406315", "league": "LEC", "tier": "A", "teamA": "Team Vitality", "teamB": "Movistar KOI", "time": "2026-09-12T15:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117030847537494300", "league": "Hellenic Legends League", "tier": "C", "teamA": "Team Phantasma", "teamB": "Valerion", "time": "2026-09-12T15:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "115565671526403069", "league": "CBLOL", "tier": "B", "teamA": "FURIA", "teamB": "LOS", "time": "2026-09-12T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565004607949375", "league": "LCS", "tier": "A", "teamA": "Shopify Rebellion", "teamB": "Cloud9 Kia", "time": "2026-09-12T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117030752644841643", "league": "LCK", "tier": "A", "teamA": "Gen.G Esports", "teamB": "Hanwha Life Esports", "time": "2026-09-13T05:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116952475624364017", "league": "VCS", "tier": "B", "teamA": "Saigon 1TAP DINO", "teamB": "Saigon Warrior", "time": "2026-09-13T09:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "117155436343202202", "league": "LPL", "tier": "A", "teamA": "Anyone's Legend", "teamB": "BILIBILI GAMING", "time": "2026-09-13T09:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116996464901637008", "league": "Hitpoint Masters", "tier": "C", "teamA": "BRUTE", "teamB": "UP2U Meavedron", "time": "2026-09-13T11:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624364033", "league": "VCS", "tier": "B", "teamA": "Saigon MVKE Academy", "teamB": "TP.HCM SN CyberCore Esports", "time": "2026-09-13T12:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "117205970511380854", "league": "EMEA Masters", "tier": "C", "teamA": "Bushido Wildcats", "teamB": "Movistar KOI Fénix", "time": "2026-09-13T15:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "115565671526403075", "league": "CBLOL", "tier": "B", "teamA": "paiN Gaming", "teamB": "LOUD", "time": "2026-09-13T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116764875786772502", "league": "Arabian League", "tier": "C", "teamA": "Pyramid IV Esports", "teamB": "Anubis Gaming", "time": "2026-09-13T16:00:00Z", "bestOf": 3, "stage": "Playoffs"}, {"id": "116837902961537603", "league": "Liga Portuguesa ", "tier": "C", "teamA": "White Dragons", "teamB": "Otter Side", "time": "2026-09-13T18:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116764875786772506", "league": "Arabian League", "tier": "C", "teamA": "BAAM Esports", "teamB": "JSK Gamefy", "time": "2026-09-13T18:30:00Z", "bestOf": 3, "stage": "Playoffs"}, {"id": "115565004607949381", "league": "LCS", "tier": "A", "teamA": "FlyQuest", "teamB": "Sentinels", "time": "2026-09-13T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116889604984222999", "league": "LCK Challengers", "tier": "A", "teamA": "DK Challengers", "teamB": "kt Challengers", "time": "2026-09-14T08:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116996464901637014", "league": "Hitpoint Masters", "tier": "C", "teamA": "EXILE Esports", "teamB": "eSuba", "time": "2026-09-14T14:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116878159559860111", "league": "NLC", "tier": "C", "teamA": "Verdant", "teamB": "Arctic Pandas", "time": "2026-09-14T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117205970511380860", "league": "EMEA Masters", "tier": "C", "teamA": "Movistar KOI Fénix", "teamB": "Berlin International Gaming", "time": "2026-09-14T16:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "116764875786772516", "league": "Arabian League", "tier": "C", "teamA": "Pyramid IV Esports", "teamB": "BAAM Esports", "time": "2026-09-14T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116809554933343406", "league": "Circuito Desafiante", "tier": "C", "teamA": "Estral Esports", "teamB": "KaBuM! Eports", "time": "2026-09-14T20:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116889604984223005", "league": "LCK Challengers", "tier": "A", "teamA": "T1 Esports Academy", "teamB": "kt Challengers", "time": "2026-09-15T08:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116996464901637002", "league": "Hitpoint Masters", "tier": "C", "teamA": "CITA Kaizen", "teamB": "NightBirds", "time": "2026-09-15T14:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116793933806066956", "league": "Road of Legends", "tier": "C", "teamA": "Senshi eSports", "teamB": "mCon Esports", "time": "2026-09-15T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116764875786772510", "league": "Arabian League", "tier": "C", "teamA": "Anubis Gaming", "teamB": "JSK Gamefy", "time": "2026-09-15T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116996464901702556", "league": "Hitpoint Masters", "tier": "C", "teamA": "eSuba", "teamB": "UP2U Meavedron", "time": "2026-09-16T14:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116764875786772520", "league": "Arabian League", "tier": "C", "teamA": "Pyramid IV Esports", "teamB": "JSK Gamefy", "time": "2026-09-16T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116878159559860117", "league": "NLC", "tier": "C", "teamA": "Ruddy Corporation", "teamB": "Verdant", "time": "2026-09-16T16:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116957100120526824", "league": "LPL", "tier": "A", "teamA": "TOP ESPORTS", "teamB": "Invictus Gaming", "time": "2026-09-17T09:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "116996464901702562", "league": "Hitpoint Masters", "tier": "C", "teamA": "eSuba", "teamB": "CITA Kaizen", "time": "2026-09-17T14:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116793933806066962", "league": "Road of Legends", "tier": "C", "teamA": "Senshi eSports", "teamB": "Frites Esports Club", "time": "2026-09-17T16:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116764875786772526", "league": "Arabian League", "tier": "C", "teamA": "JSK Gamefy", "teamB": "Anubis Gaming", "time": "2026-09-17T16:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116957100120526830", "league": "LPL", "tier": "A", "teamA": "Xi'an Team WE", "teamB": "Beijing JDG Esports", "time": "2026-09-18T09:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "115548681803406321", "league": "LEC", "tier": "A", "teamA": "Movistar KOI", "teamB": "Natus Vincere", "time": "2026-09-18T15:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116696189685662317", "league": "LoL Italian Tournament", "tier": "C", "teamA": "Colossal Gaming", "teamB": "TEAM AQUA", "time": "2026-09-18T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565004607949399", "league": "LCS", "tier": "A", "teamA": "Sentinels", "teamB": "Shopify Rebellion", "time": "2026-09-18T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624364021", "league": "VCS", "tier": "B", "teamA": "Saigon MVKE Academy", "teamB": "Saigon 1TAP DINO", "time": "2026-09-19T09:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "116957100120526836", "league": "LPL", "tier": "A", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-19T09:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "116895891142270611", "league": "Rift Legends", "tier": "C", "teamA": "BOMBA Team", "teamB": "Forsaken", "time": "2026-09-19T10:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116952475624364025", "league": "VCS", "tier": "B", "teamA": "Saigon 9Gaming Esports", "teamB": "TP.HCM SN CyberCore Esports", "time": "2026-09-19T12:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "115548681803406327", "league": "LEC", "tier": "A", "teamA": "TBD", "teamB": "Karmine Corp", "time": "2026-09-19T15:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565671526403081", "league": "CBLOL", "tier": "B", "teamA": "RED Kalunga", "teamB": "Vivo Keyd Stars", "time": "2026-09-19T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116696189685662323", "league": "LoL Italian Tournament", "tier": "C", "teamA": "TBD", "teamB": "HMBLE", "time": "2026-09-19T16:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "115565004607949387", "league": "LCS", "tier": "A", "teamA": "Cloud9 Kia", "teamB": "LYON", "time": "2026-09-19T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624364045", "league": "VCS", "tier": "B", "teamA": "Saigon MVKE Academy", "teamB": "Saigon Warrior", "time": "2026-09-20T09:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "116996464901702568", "league": "Hitpoint Masters", "tier": "C", "teamA": "TBD", "teamB": "NightBirds", "time": "2026-09-20T10:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "116952475624364013", "league": "VCS", "tier": "B", "teamA": "Saigon 9Gaming Esports", "teamB": "Saigon 1TAP DINO", "time": "2026-09-20T12:00:00Z", "bestOf": 3, "stage": "Groups"}, {"id": "115548681803406333", "league": "LEC", "tier": "A", "teamA": "TBD", "teamB": "G2 Esports", "time": "2026-09-20T15:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "115565671526468629", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "paiN Gaming", "time": "2026-09-20T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565004607949393", "league": "LCS", "tier": "A", "teamA": "FlyQuest", "teamB": "Team Liquid Alienware", "time": "2026-09-20T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117171782819600039", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731125", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731139", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731153", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819665579", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731129", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731143", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731157", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-21T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819665583", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731133", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731147", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117171782819731161", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T15:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099673", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099681", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099689", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099697", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-22T18:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099677", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-23T17:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099685", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-23T17:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099693", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-23T17:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "117173205363099701", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-23T17:00:00Z", "bestOf": 3, "stage": "Play-Ins"}, {"id": "116952475624364049", "league": "VCS", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-24T09:00:00Z", "bestOf": 3, "stage": "Playoffs"}, {"id": "116952475624364053", "league": "VCS", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-24T12:00:00Z", "bestOf": 3, "stage": "Playoffs"}, {"id": "116952475624364057", "league": "VCS", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-25T09:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565004607949411", "league": "LCS", "tier": "A", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-25T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624364063", "league": "VCS", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T09:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565671526468635", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "FURIA", "time": "2026-09-26T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117171782819731173", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731171", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731167", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731169", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731179", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731181", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731175", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731177", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731183", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731185", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731187", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731189", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731197", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731193", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731191", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731195", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "115565004607949417", "league": "LCS", "tier": "A", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-26T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "116952475624364069", "league": "VCS", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T09:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565671526468623", "league": "CBLOL", "tier": "B", "teamA": "LOS", "teamB": "LOUD", "time": "2026-09-27T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117171782819731201", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731199", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731203", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731205", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731213", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731211", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731207", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731209", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731215", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731217", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819731219", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796757", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796761", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796763", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796765", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796759", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "115565004607949405", "league": "LCS", "tier": "A", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-27T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117171782819796773", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796771", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796769", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796767", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819862317", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796779", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796777", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819796775", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927857", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927855", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927859", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927861", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927863", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927865", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927867", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927869", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-28T19:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117275453885353206", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "KaBuM! Eports", "time": "2026-09-28T21:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "117171782819927871", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927875", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927879", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T15:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927881", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T15:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927883", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927887", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927885", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927889", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T16:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927891", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927893", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927895", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927897", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T17:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927899", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927901", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T18:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927903", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T18:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927907", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-29T18:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117275453885353212", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "Estral Esports", "time": "2026-09-29T21:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "117171782819927919", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T13:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927915", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T13:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927911", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T13:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927923", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T14:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927927", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T14:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927929", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T14:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927931", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T15:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927933", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T15:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927935", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T15:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927937", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T15:00:00Z", "bestOf": 1, "stage": "Swiss"}, {"id": "117171782819927939", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927943", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927947", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927951", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-09-30T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117275453885353218", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "LOS", "time": "2026-09-30T21:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "117171782819927955", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927959", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927963", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927967", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819927971", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993511", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993515", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993519", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993523", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993527", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117275453885353224", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-01T21:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "117171782819993531", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-02T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993535", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-02T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993539", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-02T15:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993543", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-02T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "117171782819993547", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-02T16:00:00Z", "bestOf": 3, "stage": "Swiss"}, {"id": "115565671526468641", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-03T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565004607949423", "league": "LCS", "tier": "A", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-03T20:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911339", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-04T16:00:00Z", "bestOf": 5, "stage": "Knockouts"}, {"id": "117173205319911345", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-04T16:00:00Z", "bestOf": 5, "stage": "Knockouts"}, {"id": "117173205319911351", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-04T16:00:00Z", "bestOf": 5, "stage": "Knockouts"}, {"id": "115565004607949429", "league": "LCS", "tier": "A", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-04T20:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "117275453885353230", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-05T21:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "117173205319911357", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-06T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911363", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-06T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911369", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-06T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911375", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-06T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117275453885353236", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-06T21:00:00Z", "bestOf": 5, "stage": "Regional Qualifier"}, {"id": "117173205319911381", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-07T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911387", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-07T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911393", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-07T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911399", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-07T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911405", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-09T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911411", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-09T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911417", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-10T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911423", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-10T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "115565671526468647", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-10T16:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "117275453885353242", "league": "CBLOL", "tier": "B", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-12T21:00:00Z", "bestOf": 5, "stage": "Finals"}, {"id": "117173205319911429", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-13T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911435", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-14T16:00:00Z", "bestOf": 5, "stage": "Playoffs"}, {"id": "117173205319911441", "league": "EMEA Masters", "tier": "C", "teamA": "TBD", "teamB": "TBD", "time": "2026-10-23T16:00:00Z", "bestOf": 5, "stage": "Finals"}], "upcoming": [{"id": "liq-World_Championship-2026", "league": "2026 World Championship", "tier": "S", "startDate": "2026-10-15", "endDate": "2026-11-14", "note": "Розклад матчів ще не оголошено"}, {"id": "liq-Mid-Season_Invitational-2026", "league": "2026 Mid-Season Invitational", "tier": "S", "startDate": "2026-06-28", "endDate": "2026-07-12", "note": "Розклад матчів ще не оголошено"}]}</script>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="mark"></span>
+      <div>
+        <h1>Rift Slate</h1>
+        <div class="sub">Календар матчів LoL Esports</div>
+      </div>
+    </div>
+
+    <div class="side-section">
+      <h2>Tier <span class="hint">клік — увімк/вимк</span></h2>
+      <div id="tierList"></div>
+    </div>
+
+    <div class="side-section">
+      <h2>Турніри <span class="hint" id="tourneyCount"></span></h2>
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="tourneySearch" placeholder="Пошук турніру...">
+      </div>
+      <div class="tourney-list" id="tourneyList"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="allOnBtn" style="flex:1;">Всі</button>
+        <button class="btn" id="allOffBtn" style="flex:1;">Жодного</button>
+      </div>
+    </div>
+
+    <div class="side-actions">
+      <button class="btn" id="refreshBtn" style="flex:1;">↻ Оновити</button>
+      <button class="btn primary" id="importBtn" style="flex:1;">+ Імпорт</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="banner" id="demoBanner">
+      <span>⚠ <b>Демо-дані.</b> Ця сторінка сама, з браузера, не може достукатись до Liquipedia / lol.fandom (CORS). Запусти поруч доданий <b>parser.py</b> — він зайде на Riot esports feed і Liquipedia з боку Python, і впише реальний розклад прямо у цей HTML-файл. Після цього просто онови сторінку.</span>
+      <span class="close" id="bannerClose">✕</span>
+    </div>
+
+    <div class="topbar">
+      <div class="month-nav">
+        <button class="nav-btn" id="prevBtn">‹</button>
+        <h2 id="monthLabel">—</h2>
+        <button class="nav-btn" id="nextBtn">›</button>
+      </div>
+      <div class="topbar-right">
+        <div class="status" id="statusEl"><span class="dot"></span><span id="statusText">завантаження…</span></div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card busy">
+        <div class="k">НАЙБІЛЬШЕ МАТЧІВ</div>
+        <div class="v" id="busiestVal">—</div>
+        <div class="d" id="busiestDate">немає даних</div>
+      </div>
+      <div class="summary-card quiet">
+        <div class="k">НАЙМЕНШЕ МАТЧІВ</div>
+        <div class="v" id="quietestVal">—</div>
+        <div class="d" id="quietestDate">немає даних</div>
+      </div>
+      <div class="summary-card">
+        <div class="k">РАЗОМ ЗА МІСЯЦЬ</div>
+        <div class="v" id="totalVal">—</div>
+        <div class="d" id="totalDate">за поточними фільтрами</div>
+      </div>
+    </div>
+
+    <div class="weekday-row">
+      <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Нд</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="day-panel" id="dayPanel">
+      <div class="day-panel-head">
+        <h3 id="dayPanelTitle">—<span class="sub" id="dayPanelSub"></span></h3>
+        <span class="close" id="dayPanelClose">✕</span>
+      </div>
+      <div id="dayTimelineWrap"></div>
+      <div id="dayUpcomingWrap"></div>
+    </div>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="importOverlay">
+  <div class="modal">
+    <h3>Імпорт списку матчів</h3>
+    <p>
+      Встав масив JSON з полями <code>league</code>, <code>teamA</code>, <code>teamB</code>,
+      <code>time</code> (ISO-дата, напр. <code>2026-09-14T17:00:00</code>) і, за бажанням,
+      <code>tier</code> (<code>S</code>/<code>A</code>/<code>B</code>/<code>C</code>), <code>bestOf</code> (1/3/5) та <code>stage</code>.
+    </p>
+    <textarea id="importText" placeholder='[
+  {"league":"Worlds 2026","teamA":"T1","teamB":"Gen.G","time":"2026-09-14T09:00:00","tier":"S","bestOf":5,"stage":"Play-In"}
+]'></textarea>
+    <div class="modal-error" id="importError">Не вдалося розпізнати JSON. Перевір формат масиву об'єктів.</div>
+    <div class="modal-actions">
+      <button class="btn" id="importCancel">Скасувати</button>
+      <button class="btn primary" id="importConfirm">Додати матчі</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  const TIER_MAP = {
+    "worlds":"S", "world championship":"S", "msi":"S", "mid-season invitational":"S",
+    "lck":"A", "lpl":"A", "lec":"A", "lta north":"A", "lta south":"A", "lcs":"A", "lta":"A",
+    "lco":"B", "ljl":"B", "cblol":"B", "vcs":"B", "tcl":"B", "pcs":"B", "lla":"B", "ljl-jp":"B",
+  };
+  // Окремі "іменні" турніри поза регулярними лігами (ексгібішени,
+  // міжсезонні кубки) — перевіряються ПЕРШИМИ, до основної TIER_MAP,
+  // бо за назвою ліги їх не вгадати. Побачив ще один невірно вгаданий
+  // tier — додай сюди рядок "підрядок назви": "S"/"A"/"B".
+  const TOURNAMENT_TIER_OVERRIDES = {
+    "demacia cup": "S", // великий міжсезонний ексгібішен від LPL, на Liquipedia S-Tier
+  };
+  const TIER_RANK = {S:0, A:1, B:2, C:3}; // для сортування "S нагорі"
+  function guessTier(leagueName){
+    const key = (leagueName||"").toLowerCase().trim();
+    for (const k in TOURNAMENT_TIER_OVERRIDES){ if(key.includes(k)) return TOURNAMENT_TIER_OVERRIDES[k]; }
+    for (const k in TIER_MAP){ if(key.includes(k)) return TIER_MAP[k]; }
+    return "C";
+  }
+  const TIER_ORDER = ["S","A","B","C"];
+  const TIER_NAMES = {S:"S-tier · головні події", A:"A-tier · регіональні ліги", B:"B-tier · менші регіони", C:"C-tier · інше"};
+
+  /* ============ Запам'ятовування фільтрів (localStorage) ============ */
+  const FILTERS_KEY = "riftSlateFilters:v1";
+
+  function loadSavedFilters(){
+    try{
+      const raw = localStorage.getItem(FILTERS_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; } // приватний режим / localStorage вимкнено — просто без пам'яті
+  }
+  function saveFilters(){
+    try{
+      localStorage.setItem(FILTERS_KEY, JSON.stringify({
+        tiers: [...activeTiers],
+        // зберігаємо саме СПИСОК ВИМКНЕНИХ турнірів (не увімкнених): тоді нові
+        // турніри, які з'являться після наступного запуску parser.py, за
+        // замовчуванням будуть увімкнені, а раніше вимкнені — лишаться вимкненими
+        tourneysOff: allLeagueNames().filter(n => !activeTourneys.has(n)),
+      }));
+    }catch(e){ /* немає localStorage — тихо ігноруємо */ }
+  }
+  const savedFilters = loadSavedFilters();
+
+  let matches = [];
+  let upcoming = [];
+  let activeTiers = (savedFilters && Array.isArray(savedFilters.tiers) && savedFilters.tiers.length)
+    ? new Set(savedFilters.tiers.filter(t => TIER_ORDER.includes(t)))
+    : new Set(["S","A","B","C"]);
+  let activeTourneys = null; // null = ще не ініціалізовано; заповнюється в rebuildTourneyFilters()
+  let tourneySearch = "";
+  let viewDate = new Date(2026,8,1);
+  let selectedDayKey = null;
+  let dataMode = "loading";
+
+  const $ = sel => document.querySelector(sel);
+  const dayKey = d => d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+
+  /* ============ Тривалість / накладання ============ */
+  function durationMinutes(bestOf){
+    if (bestOf===1) return 45;
+    if (bestOf===3) return 105;
+    if (bestOf===5) return 170;
+    return 60; // формат невідомий — груба оцінка
+  }
+  function minutesToLabel(min){
+    const h = Math.floor(min/60), m = min%60;
+    if (h===0) return m+" хв";
+    if (m===0) return h+" год";
+    return h+" год "+m+" хв";
+  }
+  function withDurations(list){
+    return list.map(m=>{
+      const dur = durationMinutes(m.bestOf);
+      return Object.assign({}, m, {dur, end: new Date(m.date.getTime()+dur*60000)});
+    }).sort((a,b)=>a.date-b.date);
+  }
+  function computeConflicts(list){
+    const map = {};
+    for (let i=0;i<list.length;i++){
+      for (let j=i+1;j<list.length;j++){
+        if (list[j].date < list[i].end){
+          (map[list[i].id] = map[list[i].id] || []).push(list[j]);
+          (map[list[j].id] = map[list[j].id] || []).push(list[i]);
+        }
+      }
+    }
+    return map;
+  }
+
+  /* ============ Демо-дані (fallback) ============ */
+  function buildDemoMatches(){
+    const leagues = [
+      {name:"Worlds 2026", tier:"S", teams:["T1","Gen.G","JDG","BLG","G2 Esports","Fnatic","100 Thieves","Team Liquid"]},
+      {name:"LCK", tier:"A", teams:["T1","Gen.G","Dplus KIA","Hanwha Life","KT Rolster","DRX"]},
+      {name:"LPL", tier:"A", teams:["JDG","BLG","Top Esports","Weibo Gaming","LNG Esports","EDG"]},
+      {name:"LEC", tier:"A", teams:["G2 Esports","Fnatic","MAD Lions","Team Vitality","Karmine Corp"]},
+      {name:"LTA North", tier:"A", teams:["100 Thieves","Team Liquid","Cloud9","FlyQuest"]},
+      {name:"CBLOL", tier:"B", teams:["LOUD","paiN Gaming","RED Canids","Flamengo"]},
+      {name:"LJL", tier:"B", teams:["DetonatioN FocusMe","Sengoku Gaming"]},
+      {name:"PCS", tier:"B", teams:["CTBC Flying Oyster","Frank Esports"]},
+    ];
+    const out = [];
+    let id = 1;
+    for (let day=1; day<=24; day++){
+      const density = (day % 7 === 0 || day % 7 === 6) ? 5 : 2;
+      const numMatches = Math.max(0, Math.round(density * (0.5 + Math.random())));
+      const hoursUsed = [];
+      for (let m=0; m<numMatches; m++){
+        const lg = leagues[Math.floor(Math.random()*leagues.length)];
+        const teamsShuffled = [...lg.teams].sort(()=>Math.random()-0.5);
+        // час навмисно іноді перетинається, щоб продемонструвати конфлікт-детектор
+        let hour = 9 + Math.floor(Math.random()*10);
+        if (m>0 && Math.random()<0.35) hour = hoursUsed[hoursUsed.length-1];
+        hoursUsed.push(hour);
+        const minute = Math.random()<0.5 ? 0 : 30;
+        const bestOf = [1,3,3,5][Math.floor(Math.random()*4)];
+        out.push({
+          id: "demo-"+(id++),
+          league: lg.name,
+          tier: lg.tier,
+          teamA: teamsShuffled[0],
+          teamB: teamsShuffled[1],
+          date: new Date(2026,8,day,hour,minute),
+          bestOf,
+          stage: "Group Stage"
+        });
+      }
+    }
+    return out;
+  }
+  function buildDemoUpcoming(){
+    return [
+      {
+        id:"demo-upcoming-1",
+        league:"MSI 2027 Qualifiers",
+        tier:"S",
+        start:new Date(2026,8,25),
+        end:new Date(2026,8,29),
+        note:"Розклад матчів ще не оголошено"
+      },
+      {
+        id:"demo-upcoming-2",
+        league:"LTA South",
+        tier:"A",
+        start:new Date(2026,8,20),
+        end:new Date(2026,8,22),
+        note:"Дати підтверджені, точний час — ні"
+      }
+    ];
+  }
+
+  /* ============ Спроба живого fetch з браузера (другорядний fallback) ============ */
+  async function tryLiveFetch(){
+    const API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z";
+    const url = "https://esports-api.lolesports.com/persisted/gw/getSchedule?hl=en-GB";
+    const res = await fetch(url, { headers: { "x-api-key": API_KEY } });
+    if (!res.ok) throw new Error("bad status "+res.status);
+    const json = await res.json();
+    const events = json?.data?.schedule?.events || [];
+    if (!events.length) throw new Error("empty schedule");
+    return events.map((ev,i) => {
+      const teams = ev?.match?.teams || [];
+      const strategy = ev?.match?.strategy || {};
+      return {
+        id: ev.match?.id || ("live-"+i),
+        league: ev.league?.name || "Unknown League",
+        tier: guessTier(ev.league?.name),
+        teamA: teams[0]?.name || "TBD",
+        teamB: teams[1]?.name || "TBD",
+        date: new Date(ev.startTime),
+        bestOf: strategy.count || null,
+        stage: ev.blockName || ""
+      };
+    });
+  }
+
+  /* ============ Дані з parser.py, вбудовані у сторінку ============ */
+  function loadEmbedded(){
+    try{
+      const raw = (document.getElementById("match-data").textContent || "").trim();
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      const m = obj.matches || [], u = obj.upcoming || [];
+      if (!m.length && !u.length) return null;
+      return obj;
+    }catch(e){ return null; }
+  }
+
+  async function loadData(){
+    setStatus("loading", "завантаження…");
+    const embedded = loadEmbedded();
+    if (embedded){
+      matches = (embedded.matches||[]).map(m => Object.assign({}, m, {date:new Date(m.time)}));
+      upcoming = (embedded.upcoming||[]).map(u => Object.assign({}, u, {start:new Date(u.startDate), end:new Date(u.endDate||u.startDate)}));
+      dataMode = "parsed";
+      const ts = embedded.generatedAt ? new Date(embedded.generatedAt).toLocaleString('uk-UA') : "";
+      setStatus("live", "дані parser.py" + (ts ? " · "+ts : ""));
+      $("#demoBanner").classList.remove("show");
+    } else {
+      try{
+        matches = await tryLiveFetch();
+        upcoming = [];
+        dataMode = "live";
+        setStatus("live", "живі дані · lolesports feed");
+        $("#demoBanner").classList.remove("show");
+      }catch(err){
+        matches = buildDemoMatches();
+        upcoming = buildDemoUpcoming();
+        dataMode = "demo";
+        setStatus("demo", "демо-дані — запусти parser.py");
+        $("#demoBanner").classList.add("show");
+      }
+    }
+    rebuildTourneyFilters();
+    render();
+  }
+
+  function setStatus(mode, text){
+    const el = $("#statusEl");
+    el.className = "status " + (mode==="live" ? "live" : mode==="demo" ? "demo" : "");
+    $("#statusText").textContent = text;
+  }
+
+  /* ============ Фільтри ============ */
+  function allLeagueNames(){
+    return [...new Set([...matches.map(m=>m.league), ...upcoming.map(u=>u.league)])].sort();
+  }
+
+  function rebuildTourneyFilters(){
+    const names = allLeagueNames();
+    if (activeTourneys === null){
+      // перший запуск за цю сесію — застосовуємо збережений deny-list (якщо є),
+      // інакше типово всі турніри увімкнені
+      const off = new Set((savedFilters && Array.isArray(savedFilters.tourneysOff)) ? savedFilters.tourneysOff : []);
+      activeTourneys = new Set(names.filter(n => !off.has(n)));
+    } else {
+      const prev = activeTourneys;
+      activeTourneys = new Set();
+      names.forEach(n => { if (prev.size===0 || prev.has(n)) activeTourneys.add(n); });
+    }
+    renderTierList();
+    renderTourneyList();
+  }
+
+  function renderTierList(){
+    const counts = {};
+    TIER_ORDER.forEach(t=>counts[t]=0);
+    matches.forEach(m => counts[m.tier] = (counts[m.tier]||0)+1);
+    const wrap = $("#tierList");
+    wrap.innerHTML = "";
+    TIER_ORDER.forEach(t=>{
+      const row = document.createElement("div");
+      row.className = "tier-row" + (activeTiers.has(t) ? "" : " off");
+      row.dataset.tier = t;
+      row.innerHTML = '<span class="tier-dot"></span><span class="label">'+TIER_NAMES[t]+'</span><span class="count">'+counts[t]+'</span>';
+      row.addEventListener("click", ()=>{
+        if (activeTiers.has(t)) activeTiers.delete(t); else activeTiers.add(t);
+        renderTierList(); render(); saveFilters();
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderTourneyList(){
+    const names = allLeagueNames()
+      .filter(n => n.toLowerCase().includes(tourneySearch.toLowerCase()))
+      .map(name=>{
+        const sample = matches.find(m=>m.league===name) || upcoming.find(u=>u.league===name);
+        return { name, tier: sample ? sample.tier : "C" };
+      })
+      // S-tier нагорі, далі A/B/C, у межах одного tier — за алфавітом
+      .sort((a,b)=> (TIER_RANK[a.tier]-TIER_RANK[b.tier]) || a.name.localeCompare(b.name));
+
+    const wrap = $("#tourneyList");
+    wrap.innerHTML = "";
+    names.forEach(({name, tier})=>{
+      const hasSchedule = matches.some(m=>m.league===name);
+      const row = document.createElement("div");
+      row.className = "tourney-row" + (activeTourneys.has(name) ? " checked" : "");
+      row.innerHTML =
+        '<span class="chk"></span>' +
+        '<span class="tdot" style="background:var(--tier-'+tier.toLowerCase()+')"></span>' +
+        '<span class="name">'+name+'</span>' +
+        (hasSchedule ? '' : '<span class="tbd-tag">TBD</span>');
+      row.addEventListener("click", ()=>{
+        if (activeTourneys.has(name)) activeTourneys.delete(name); else activeTourneys.add(name);
+        renderTourneyList(); render(); saveFilters();
+      });
+      wrap.appendChild(row);
+    });
+    $("#tourneyCount").textContent = activeTourneys.size + " / " + allLeagueNames().length;
+  }
+
+  $("#tourneySearch").addEventListener("input", e=>{
+    tourneySearch = e.target.value;
+    renderTourneyList();
+  });
+  $("#allOnBtn").addEventListener("click", ()=>{
+    activeTourneys = new Set(allLeagueNames());
+    renderTourneyList(); render(); saveFilters();
+  });
+  $("#allOffBtn").addEventListener("click", ()=>{
+    activeTourneys = new Set();
+    renderTourneyList(); render(); saveFilters();
+  });
+
+  function visibleMatches(){
+    return matches.filter(m => activeTiers.has(m.tier) && activeTourneys.has(m.league));
+  }
+  function visibleUpcoming(){
+    return upcoming.filter(u => activeTiers.has(u.tier) && activeTourneys.has(u.league));
+  }
+
+  /* ============ Календар ============ */
+  const MONTH_NAMES = ["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
+
+  // Рахує тривалість/кінець усіх видимих матчів і розкладає їх по днях
+  // заданого місяця (y,m). Матч, що перетинає північ, розбивається на два
+  // сегменти: "до півночі" (лишається на дні старту) і "після півночі"
+  // (переходить на наступний день) — так само, як у Google Calendar для
+  // нічних подій. Винесено в окрему функцію, бо використовується і для
+  // основної сітки, і для переходу на сусідній день по кліку на матч.
+  function buildByDayMap(y, m){
+    const vis = visibleMatches();
+    const withDur = withDurations(vis);
+    const byDay = {};
+
+    withDur.forEach(mt=>{
+      const crosses =
+        mt.date.getFullYear()!==mt.end.getFullYear() ||
+        mt.date.getMonth()!==mt.end.getMonth() ||
+        mt.date.getDate()!==mt.end.getDate();
+
+      if (!crosses){
+        if (mt.date.getFullYear()===y && mt.date.getMonth()===m){
+          const d = mt.date.getDate();
+          (byDay[d] = byDay[d] || []).push(Object.assign({}, mt, {
+            trueStart: mt.date, trueEnd: mt.end, continuesNext:false, continuesPrev:false,
+          }));
+        }
+        return;
+      }
+
+      const midnight = new Date(mt.date.getFullYear(), mt.date.getMonth(), mt.date.getDate()+1, 0,0,0,0);
+
+      // Сегмент 1 — від старту матчу до півночі, лишається на "сьогодні"
+      if (mt.date.getFullYear()===y && mt.date.getMonth()===m){
+        const d = mt.date.getDate();
+        (byDay[d] = byDay[d] || []).push(Object.assign({}, mt, {
+          end: midnight, trueStart: mt.date, trueEnd: mt.end, continuesNext:true, continuesPrev:false,
+        }));
+      }
+      // Сегмент 2 — від півночі до реального завершення, "переходить" на завтра
+      if (mt.end.getFullYear()===y && mt.end.getMonth()===m){
+        const d2 = mt.end.getDate();
+        (byDay[d2] = byDay[d2] || []).push(Object.assign({}, mt, {
+          date: midnight, trueStart: mt.date, trueEnd: mt.end, continuesNext:false, continuesPrev:true,
+        }));
+      }
+    });
+    Object.values(byDay).forEach(arr => arr.sort((a,b)=>a.date-b.date));
+    return byDay;
+  }
+
+  function render(){
+    const y = viewDate.getFullYear(), m = viewDate.getMonth();
+    $("#monthLabel").textContent = MONTH_NAMES[m] + " " + y;
+
+    const visUp = visibleUpcoming();
+    const byDay = buildByDayMap(y, m);
+
+    const dayCounts = Object.entries(byDay).map(([d,arr])=>({day:+d, count:arr.length}));
+    let busiest=null, quietest=null;
+    if (dayCounts.length){
+      busiest = dayCounts.reduce((a,b)=> b.count>a.count ? b : a);
+      quietest = dayCounts.reduce((a,b)=> b.count<a.count ? b : a);
+    }
+    const total = Object.values(byDay).reduce((sum,arr)=>sum+arr.length, 0);
+
+    $("#busiestVal").textContent = busiest ? busiest.count : "—";
+    $("#busiestDate").textContent = busiest ? (busiest.day+" "+MONTH_NAMES[m].toLowerCase()) : "немає матчів у місяці";
+    $("#quietestVal").textContent = quietest ? quietest.count : "—";
+    $("#quietestDate").textContent = quietest ? (quietest.day+" "+MONTH_NAMES[m].toLowerCase()) : "немає матчів у місяці";
+    $("#totalVal").textContent = total;
+
+    const first = new Date(y,m,1);
+    const startOffset = (first.getDay()+6)%7;
+    const daysInMonth = new Date(y,m+1,0).getDate();
+    const daysInPrevMonth = new Date(y,m,0).getDate();
+    const today = new Date();
+    const cells = [];
+    for (let i=0;i<startOffset;i++){
+      const dnum = daysInPrevMonth - startOffset + 1 + i;
+      cells.push({dnum, outside:true, date:new Date(y,m-1,dnum)});
+    }
+    for (let d=1; d<=daysInMonth; d++){
+      cells.push({dnum:d, outside:false, date:new Date(y,m,d)});
+    }
+    while (cells.length % 7 !== 0 || cells.length < 42){
+      const idx = cells.length - (startOffset+daysInMonth);
+      cells.push({dnum: idx+1, outside:true, date:new Date(y,m+1,idx+1)});
+      if (cells.length>=42) break;
+    }
+
+    const grid = $("#calGrid");
+    grid.innerHTML = "";
+    cells.forEach(c=>{
+      const cell = document.createElement("div");
+      let cls = "cal-cell";
+      if (c.outside) cls += " outside";
+      const isToday = c.date.toDateString() === today.toDateString();
+      if (isToday) cls += " today";
+      const key = dayKey(c.date);
+      if (key === selectedDayKey) cls += " selected";
+      if (busiest && !c.outside && c.dnum===busiest.day && busiest.count>0) cls += " busiest";
+      if (quietest && !c.outside && c.dnum===quietest.day && dayCounts.length>1) cls += " quietest";
+      cell.className = cls;
+
+      const dayMatches = (!c.outside && byDay[c.dnum]) ? byDay[c.dnum] : [];
+      const conflicts = computeConflicts(dayMatches);
+
+      const dayUpcoming = visUp.filter(u => c.date >= stripTime(u.start) && c.date <= stripTime(u.end));
+
+      let flag = "";
+      if (!c.outside && busiest && c.dnum===busiest.day && busiest.count>0) flag = '<span class="cell-flag busy">MAX</span>';
+      else if (!c.outside && quietest && c.dnum===quietest.day && dayCounts.length>1) flag = '<span class="cell-flag quiet">MIN</span>';
+
+      let html = '<div class="cell-head"><span class="cell-day">'+c.dnum+'</span>'+flag+'</div>';
+
+      dayUpcoming.slice(0,1).forEach(u=>{
+        html += '<div class="ribbon" data-tier="'+u.tier+'"><span class="tbd-mark">TBD</span><span class="n">'+u.league+'</span></div>';
+      });
+
+      // Якщо матчів більше трьох — пріоритет на показ мають матчі вищого
+      // tier (S нагорі), а не просто перші за часом; самі три вибрані
+      // чіпи потім знову впорядковуємо за часом для природного читання.
+      const shown = [...dayMatches]
+        .sort((a,b)=> (TIER_RANK[a.tier]-TIER_RANK[b.tier]) || (a.date-b.date))
+        .slice(0,3)
+        .sort((a,b)=>a.date-b.date);
+      shown.forEach(mt=>{
+        const tstr = mt.continuesPrev ? "00:00" : mt.date.toTimeString().slice(0,5);
+        const isConflict = conflicts[mt.id] ? ' conflict' : '';
+        const warn = conflicts[mt.id] ? '<span class="warn">!</span>' : '';
+        const contMark = (mt.continuesNext || mt.continuesPrev) ? '<span class="warn" title="матч триває через північ" style="color:var(--tier-a);">⇄</span>' : '';
+        html += '<div class="chip'+isConflict+'" data-tier="'+mt.tier+'"><span class="t">'+tstr+'</span><span class="n">'+mt.teamA+' vs '+mt.teamB+'</span>'+warn+contMark+'</div>';
+      });
+      if (dayMatches.length > 3){
+        html += '<div class="chip-more">+'+(dayMatches.length-3)+' ще</div>';
+      }
+      cell.innerHTML = html;
+      cell.addEventListener("click", ()=>{
+        selectedDayKey = key;
+        openDayPanel(c.date, dayMatches, conflicts, dayUpcoming);
+        render();
+      });
+      grid.appendChild(cell);
+    });
+  }
+
+  function stripTime(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+  // Переносить перегляд на конкретний день (можливо, в іншому місяці) і
+  // одразу відкриває для нього панель дня — використовується кліком на
+  // сегмент матчу, що перетинає північ ("триває на наступний/з попереднього дня").
+  function jumpToDay(date){
+    const y = date.getFullYear(), m = date.getMonth();
+    if (y !== viewDate.getFullYear() || m !== viewDate.getMonth()){
+      viewDate = new Date(y, m, 1);
+    }
+    selectedDayKey = dayKey(date);
+    render();
+    const byDay = buildByDayMap(y, m);
+    const dayMatches = byDay[date.getDate()] || [];
+    const conflicts = computeConflicts(dayMatches);
+    const visUp = visibleUpcoming();
+    const dayUpcoming = visUp.filter(u => date >= stripTime(u.start) && date <= stripTime(u.end));
+    openDayPanel(date, dayMatches, conflicts, dayUpcoming);
+  }
+
+
+  /* Ставить кожному матчу _col (номер колонки) і повертає загальну кількість
+     колонок за день — щоб матчі, що накладаються за часом, малювались поруч
+     один з одним по горизонталі, як у Google Calendar. */
+  function assignColumns(sortedEvents){
+    const colEnds = []; // colEnds[i] = час закінчення останньої події в колонці i
+    sortedEvents.forEach(ev=>{
+      let placed = false;
+      for (let i=0;i<colEnds.length;i++){
+        if (colEnds[i] <= ev.date){ colEnds[i] = ev.end; ev._col = i; placed = true; break; }
+      }
+      if (!placed){ colEnds.push(ev.end); ev._col = colEnds.length-1; }
+    });
+    const totalCols = colEnds.length || 1;
+    sortedEvents.forEach(ev => ev._cols = totalCols);
+    return totalCols;
+  }
+
+  const HOUR_H = 56;      // px на годину в "живій" (нестиснутій) ділянці шкали
+  const EDGE_PAD_MIN = 45;  // хв відступу до першого і після останнього матчу
+  const GAP_THRESHOLD_MIN = 90; // проміжок довший за це — стискаємо в смугу
+  const GAP_BAND_H = 34;   // px висота стиснутої смуги "матчів немає"
+
+  function minutesToClock(min){
+    min = Math.max(0, Math.min(1440, Math.round(min)));
+    const h = Math.min(23, Math.floor(min/60)), mm = min%60;
+    return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0");
+  }
+
+  /* Будує "стиснуту" розкладку шкали дня: суцільні ділянки з матчами
+     рендеряться пропорційно (HOUR_H за годину), а проміжки між ними,
+     довші за GAP_THRESHOLD_MIN, стискаються в смугу фіксованої висоти
+     з підписом — щоб порожні 5-6 годин між ранковим і вечірнім блоком
+     не розтягували панель дарма. */
+  function buildTimelineLayout(dayMatches){
+    const raw = dayMatches.map(mt => ({
+      start: mt.date.getHours()*60 + mt.date.getMinutes(),
+      end: mt.continuesNext ? 1440 : (mt.end.getHours()*60 + mt.end.getMinutes()),
+    })).sort((a,b)=>a.start-b.start);
+
+    // 1. зливаємо реально накладені/дотичні матчі в "зайняті кластери"
+    const clusters = [];
+    raw.forEach(iv=>{
+      const last = clusters[clusters.length-1];
+      if (last && iv.start <= last.end) last.end = Math.max(last.end, iv.end);
+      else clusters.push({start: iv.start, end: iv.end});
+    });
+
+    // 2. зливаємо кластери, між якими проміжок МЕНШИЙ за поріг — вони
+    //    лишаються однією суцільною пропорційною ділянкою шкали
+    const merged = [];
+    clusters.forEach(c=>{
+      const last = merged[merged.length-1];
+      if (last && (c.start - last.end) < GAP_THRESHOLD_MIN) last.end = Math.max(last.end, c.end);
+      else merged.push({start: c.start, end: c.end});
+    });
+
+    // 3. відступи по краях дня
+    merged[0].start = Math.max(0, merged[0].start - EDGE_PAD_MIN);
+    merged[merged.length-1].end = Math.min(1440, merged[merged.length-1].end + EDGE_PAD_MIN);
+
+    // 4. складаємо послідовність сегментів шкали: 'scale' (пропорційно) і
+    //    'gap' (стиснута смуга) між ними, з накопичувальною позицією top
+    const segments = [];
+    let top = 0;
+    merged.forEach((block, i)=>{
+      const height = ((block.end - block.start)/60) * HOUR_H;
+      segments.push({type:"scale", start: block.start, end: block.end, top, height});
+      top += height;
+      const next = merged[i+1];
+      if (next){
+        segments.push({type:"gap", start: block.end, end: next.start, top, height: GAP_BAND_H});
+        top += GAP_BAND_H;
+      }
+    });
+
+    return { segments, totalHeight: top };
+  }
+
+  function yForMinute(segments, min){
+    for (const seg of segments){
+      if (seg.type === "scale" && min >= seg.start && min <= seg.end){
+        return seg.top + ((min - seg.start)/60) * HOUR_H;
+      }
+    }
+    const last = segments[segments.length-1];
+    return last.top + last.height;
+  }
+
+  function buildTimeline(dayMatches, conflicts){
+    if (!dayMatches.length) return null;
+
+    assignColumns(dayMatches);
+    const layout = buildTimelineLayout(dayMatches);
+
+    const wrap = document.createElement("div");
+    wrap.className = "timeline-wrap";
+
+    const hoursCol = document.createElement("div");
+    hoursCol.className = "timeline-hours";
+    hoursCol.style.height = layout.totalHeight+"px";
+    layout.segments.filter(s=>s.type==="scale").forEach(seg=>{
+      for (let h=Math.ceil(seg.start/60); h<24 && h*60<=seg.end; h++){
+        const lbl = document.createElement("div");
+        lbl.className = "timeline-hour-label";
+        lbl.style.top = (seg.top + ((h*60-seg.start)/60)*HOUR_H - 6) + "px";
+        lbl.textContent = String(h).padStart(2,"0")+":00";
+        hoursCol.appendChild(lbl);
+      }
+    });
+
+    const body = document.createElement("div");
+    body.className = "timeline-body";
+    body.style.height = layout.totalHeight+"px";
+
+    layout.segments.filter(s=>s.type==="gap").forEach(seg=>{
+      const band = document.createElement("div");
+      band.className = "timeline-gap";
+      band.style.top = seg.top+"px";
+      band.style.height = seg.height+"px";
+      band.innerHTML = '<span class="timeline-gap-label">'+minutesToClock(seg.start)+'–'+minutesToClock(seg.end)+' · матчів не заплановано</span>';
+      body.appendChild(band);
+    });
+
+    dayMatches.forEach(mt=>{
+      const startMin = mt.date.getHours()*60 + mt.date.getMinutes();
+      // mt.end для сегмента, що "триває далі" (continuesNext), дорівнює
+      // рівно півночі — технічно це 00:00 НАСТУПНОГО дня (getHours()===0),
+      // тож для позиції на СЬОГОДНІШНІЙ шкалі це 24:00 (1440 хв), а не 0
+      const endMin = mt.continuesNext ? 24*60 : (mt.end.getHours()*60 + mt.end.getMinutes());
+      const top = yForMinute(layout.segments, startMin);
+      const bottom = yForMinute(layout.segments, endMin);
+      const height = Math.max(22, bottom - top - 3);
+      const widthPct = 100/mt._cols;
+      const leftPct = mt._col*widthPct;
+
+      const block = document.createElement("div");
+      const sizeClass = height<28 ? " tiny" : height<58 ? " compact" : "";
+      const crossable = mt.continuesNext || mt.continuesPrev;
+      const crossClass = mt.continuesNext ? " continues-next" : mt.continuesPrev ? " continues-prev" : "";
+      block.className = "event-block" + (conflicts[mt.id] ? " conflict" : "") + sizeClass + crossClass;
+      block.dataset.tier = mt.tier;
+      block.style.top = top+"px";
+      block.style.height = height+"px";
+      block.style.left = "calc("+leftPct+"% + 3px)";
+      block.style.width = "calc("+widthPct+"% - 6px)";
+
+      // У підписах завжди показуємо СПРАВЖНІй час початку/кінця матчу
+      // (а не обрізаний межею доби) — стрілка вказує, в який бік матч
+      // "виходить" за межі поточного дня.
+      const tStart = mt.trueStart.toTimeString().slice(0,5);
+      const tEnd = mt.trueEnd.toTimeString().slice(0,5);
+      const crossNote = mt.continuesNext ? " ⏭ (завтра)" : mt.continuesPrev ? " ⏮ (учора)" : "";
+      block.title = mt.teamA+" vs "+mt.teamB+" · "+mt.league+(mt.stage ? " · "+mt.stage : "")+"\n"+tStart+"–"+tEnd+crossNote+
+        (mt.bestOf ? " · Bo"+mt.bestOf : "")+" (≈ "+minutesToLabel(mt.dur)+", орієнтовно)"+
+        (mt.continuesNext ? "\n⏭ Матч триває після півночі — клікни, щоб перейти на наступний день" : "")+
+        (mt.continuesPrev ? "\n⏮ Матч розпочався напередодні — клікни, щоб перейти на попередній день" : "")+
+        (conflicts[mt.id] ? "\n⚠ Накладається з: "+conflicts[mt.id].map(o=>o.teamA+" vs "+o.teamB).join(", ") : "");
+      block.innerHTML =
+        '<span class="eb-time">'+tStart+'–'+tEnd+(mt.bestOf ? ' · Bo'+mt.bestOf : '')+(mt.continuesNext ? ' ⏭' : mt.continuesPrev ? ' ⏮' : '')+'</span>' +
+        '<span class="eb-teams">'+mt.teamA+' vs '+mt.teamB+(mt.bestOf ? '<span class="eb-teams-bo"> · Bo'+mt.bestOf+'</span>' : '')+'</span>' +
+        '<span class="eb-league">'+mt.league+'</span>';
+
+      if (crossable){
+        block.addEventListener("click", (e)=>{
+          e.stopPropagation();
+          const target = mt.continuesNext
+            ? new Date(mt.date.getFullYear(), mt.date.getMonth(), mt.date.getDate()+1)
+            : new Date(mt.trueStart.getFullYear(), mt.trueStart.getMonth(), mt.trueStart.getDate());
+          jumpToDay(target);
+        });
+      }
+
+      body.appendChild(block);
+    });
+
+    wrap.appendChild(hoursCol);
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  function openDayPanel(date, dayMatches, conflicts, dayUpcoming){
+    const panel = $("#dayPanel");
+    panel.classList.add("show");
+    panel.classList.remove("grown");
+
+    $("#dayPanelTitle").firstChild.textContent = date.toLocaleDateString('uk-UA', {weekday:'long', day:'numeric', month:'long'})+" ";
+    $("#dayPanelSub").textContent = dayMatches.length
+      ? (dayMatches.length+" "+(dayMatches.length===1?"матч":"матчів")+" · погодинно")
+      : "";
+
+    const tWrap = $("#dayTimelineWrap");
+    const uWrap = $("#dayUpcomingWrap");
+    tWrap.innerHTML = "";
+    uWrap.innerHTML = "";
+
+    if (!dayMatches.length && !dayUpcoming.length){
+      tWrap.innerHTML = '<div class="empty-note">Матчів немає (за поточними фільтрами).</div>';
+    } else if (dayMatches.length){
+      const timeline = buildTimeline(dayMatches, conflicts);
+      if (timeline) tWrap.appendChild(timeline);
+    } else {
+      tWrap.innerHTML = '<div class="empty-note">Точного часу матчів на цей день немає — лише турніри без розкладу нижче.</div>';
+    }
+
+    if (dayUpcoming.length){
+      uWrap.innerHTML += '<div class="day-section-title">Турніри без підтвердженого розкладу (ці дні проведення)</div>';
+      dayUpcoming.forEach(u=>{
+        const row = document.createElement("div");
+        row.className = "upcoming-row";
+        row.dataset.tier = u.tier;
+        const rangeStr = u.start.toLocaleDateString('uk-UA',{day:'numeric',month:'short'}) + " – " + u.end.toLocaleDateString('uk-UA',{day:'numeric',month:'short'});
+        row.innerHTML =
+          '<span class="uname">'+u.league+'</span>' +
+          '<span class="urange">'+rangeStr+'</span>' +
+          '<span class="unote">'+(u.note||"розклад не оголошено")+'</span>';
+        uWrap.appendChild(row);
+      });
+    }
+
+    // "зростання" панелі — стартуємо зі стиснутого стану і на наступному кадрі
+    // анімуємо до повного розміру (transform+opacity, див. CSS .day-panel.grown)
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=> panel.classList.add("grown"));
+    });
+    panel.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  $("#dayPanelClose").addEventListener("click", ()=>{
+    $("#dayPanel").classList.remove("show","grown");
+    selectedDayKey = null;
+    render();
+  });
+
+  $("#prevBtn").addEventListener("click", ()=>{ viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1); render(); });
+  $("#nextBtn").addEventListener("click", ()=>{ viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1); render(); });
+
+  // Клік "Оновити" намагається достукатись до локального сервера
+  // (server.py), який сам запускає update.sh -> parser.py і повертає
+  // свіжі дані у файл. Браузер сам такого запустити не може — це
+  // працює лише якщо сторінку відкрито через http://localhost:8765/…,
+  // а не подвійним кліком по файлу. Якщо сервера немає — тихо
+  // повертаємось до старої поведінки (просто перечитуємо вже вбудовані
+  // в html дані) і пояснюємо, що саме зробити для живого оновлення.
+  $("#refreshBtn").addEventListener("click", async ()=>{
+    const btn = $("#refreshBtn");
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Оновлюю…";
+    try{
+      const res = await fetch("/api/update", { method: "POST" });
+      const data = await res.json().catch(()=>null);
+      if (!res.ok || !data || !data.success){
+        throw new Error((data && (data.error || data.stderr)) || ("HTTP "+res.status));
+      }
+      alert("✓ Дані оновлено! Зараз перезавантажу сторінку.");
+      location.reload();
+    }catch(err){
+      console.warn("Локальний сервер недоступний або update.sh завершився з помилкою:", err);
+      btn.disabled = false;
+      btn.textContent = originalText;
+      loadData(); // хоча б перечитати те, що вже вбудовано в html
+      alert(
+        "Не вдалось запустити живе оновлення автоматично.\n\n" +
+        "Щоб кнопка «Оновити» дійсно запускала update.sh:\n" +
+        "1) у терміналі: python3 server.py\n" +
+        "2) відкрий сторінку саме як http://localhost:8765/rift-slate.html\n\n" +
+        "Або онови дані вручну командою ./update.sh і онови цю сторінку."
+      );
+    }
+  });
+
+  $("#bannerClose").addEventListener("click", ()=> $("#demoBanner").classList.remove("show"));
+
+  $("#importBtn").addEventListener("click", ()=> $("#importOverlay").classList.add("show"));
+  $("#importCancel").addEventListener("click", ()=> $("#importOverlay").classList.remove("show"));
+  $("#importConfirm").addEventListener("click", ()=>{
+    const raw = $("#importText").value.trim();
+    $("#importError").classList.remove("show");
+    try{
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) throw new Error("not array");
+      let count = 0;
+      arr.forEach((item,i)=>{
+        if (!item.league || !item.teamA || !item.teamB || !item.time) return;
+        matches.push({
+          id: "import-"+Date.now()+"-"+i,
+          league: item.league,
+          tier: (item.tier && TIER_ORDER.includes(item.tier)) ? item.tier : guessTier(item.league),
+          teamA: item.teamA,
+          teamB: item.teamB,
+          date: new Date(item.time),
+          bestOf: item.bestOf || null,
+          stage: item.stage || ""
+        });
+        count++;
+      });
+      if (!count) throw new Error("no valid rows");
+      $("#importOverlay").classList.remove("show");
+      $("#importText").value = "";
+      rebuildTourneyFilters();
+      render();
+    }catch(err){
+      $("#importError").classList.add("show");
+    }
+  });
+
+  loadData();
+})();
+</script>
+</body>
+</html>
