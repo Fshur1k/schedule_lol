@@ -6,10 +6,15 @@ Rift Slate — простий запускач для людей без досв
 Один запуск (подвійний клік по .exe на Windows або по програмі на Mac):
   1. Якщо поруч ще немає rift-slate.html — створює його з вбудованого шаблону
      (перший запуск "розпаковує" сторінку).
-  2. Оновлює дані в rift-slate.html — той самий Riot + Liquipedia +
+  2. Якщо поруч лежить liquipedia_manual.html і/або leaguepedia_manual.html
+     (вручну збережена сторінка через Ctrl+S у браузері) — використовує
+     ЇХ замість живого запиту до відповідного сайту. Немає такого файлу —
+     тягне з мережі як завжди. Це рятує, коли Liquipedia/Leaguepedia
+     блокують запити (403 тощо).
+  3. Оновлює дані в rift-slate.html — той самий Riot + Liquipedia +
      Leaguepedia парсинг, що й у parser.py, викликаний напряму.
-  3. Відкриває оновлену сторінку в браузері за замовчуванням.
-  4. Чекає Enter перед закриттям — інакше на Windows консольне вікно
+  4. Відкриває оновлену сторінку в браузері за замовчуванням.
+  5. Чекає Enter перед закриттям — інакше на Windows консольне вікно
      закривається одразу і людина не встигає прочитати, що сталось.
 
 Це той самий файл, з якого PyInstaller збирає RiftSlateUpdater.exe /
@@ -23,6 +28,11 @@ import webbrowser
 from pathlib import Path
 
 import parser as rift_parser  # той самий parser.py, що лежить поруч цього файлу
+
+# Назви файлів, які людина може вручну покласти поруч із програмою, щоб
+# підсунути власний знімок сторінки замість живого запиту до сайту.
+LIQUIPEDIA_MANUAL_FILE = "liquipedia_manual.html"
+LEAGUEPEDIA_MANUAL_FILE = "leaguepedia_manual.html"
 
 
 def app_dir() -> Path:
@@ -51,6 +61,16 @@ def ensure_html_copy(target_dir: Path) -> Path:
     return target
 
 
+def find_manual_file(target_dir: Path, filename: str):
+    """Повертає шлях до вручну покладеного файлу поруч із програмою, якщо
+    він там є, інакше None (тоді функції parser.py самі підуть у мережу)."""
+    p = target_dir / filename
+    if p.exists():
+        print(f"  (знайдено {filename} поруч із програмою — використовую його замість живого запиту)")
+        return str(p)
+    return None
+
+
 def main():
     d = app_dir()
     html_path = ensure_html_copy(d)
@@ -71,13 +91,15 @@ def main():
         print(f"  знайдено {len(matches)} запланованих матчів")
 
         print("\n→ Отримую дати турнірів з Liquipedia…")
+        liq_manual = find_manual_file(d, LIQUIPEDIA_MANUAL_FILE)
         from_liq_pages = rift_parser.fetch_liquipedia_upcoming(
             ["World_Championship/2026", "Mid-Season_Invitational/2026"]
         )
-        from_liq_panel = rift_parser.fetch_liquipedia_tournament_panel()
+        from_liq_panel = rift_parser.fetch_liquipedia_tournament_panel(html_file=liq_manual)
 
         print("\n→ Перевіряю Leaguepedia (lol.fandom)…")
-        from_lpd_panel = rift_parser.fetch_leaguepedia_tournament_panel()
+        lpd_manual = find_manual_file(d, LEAGUEPEDIA_MANUAL_FILE)
+        from_lpd_panel = rift_parser.fetch_leaguepedia_tournament_panel(html_file=lpd_manual)
 
         upcoming = rift_parser.merge_upcoming(from_liq_pages, from_liq_panel, from_lpd_panel)
         upcoming = rift_parser.drop_upcoming_already_scheduled(upcoming, matches)
